@@ -1,0 +1,109 @@
+#cloud-config
+
+apt_update: true
+package_upgrade: true
+packages:
+  - apt-transport-https
+  - ca-certificates
+  - build-essential
+  - gcc
+  - libldap2-dev
+
+write_files:
+  - path: /etc/versions
+    owner: root:root
+    permissions: '0644'
+    content: |
+      export PCRE_VERSION=8.43
+      export ZLIB_VERSION=1.2.11
+      export OPENSSL_VERSION=1.1.1d
+      export NGINXLDAP_VERSION=master
+      export NGINX_VERSION=1.16.1
+  - path: /lib/systemd/system/nginx.service
+    owner: root:root
+    permissions: '0644'
+    content: |
+      [Unit]
+      Description=The NGINX HTTP and reverse proxy server
+      After=syslog.target network.target remote-fs.target nss-lookup.target
+
+      [Service]
+      Type=forking
+      PIDFile=/run/nginx.pid
+      ExecStartPre=/usr/sbin/nginx -t
+      ExecStart=/usr/sbin/nginx
+      ExecReload=/usr/sbin/nginx -s reload
+      ExecStop=/bin/kill -s QUIT $MAINPID
+      PrivateTmp=true
+
+      [Install]
+      WantedBy=multi-user.target
+
+runcmd:
+  - |
+    . /etc/versions;
+    mkdir -p /build/pcre;
+    cd /build/pcre;
+    wget https://ftp.pcre.org/pub/pcre/pcre-${PCRE_VERSION}.tar.gz;
+    tar -xzvf pcre-${PCRE_VERSION}.tar.gz;
+    cd pcre-${PCRE_VERSION};
+    ./configure;
+    make ;
+    make install
+  - |
+    . /etc/versions;
+    mkdir -p /build/zlib;
+    cd /build/zlib;
+    wget http://zlib.net/zlib-${ZLIB_VERSION}.tar.gz;
+    tar -zxf zlib-${ZLIB_VERSION}.tar.gz;
+    cd zlib-${ZLIB_VERSION};
+    ./configure;
+    make;
+    make install
+  - |
+    . /etc/versions;
+    mkdir -p /build/openssl;
+    cd /build/openssl;
+    wget http://www.openssl.org/source/openssl-${OPENSSL_VERSION}.tar.gz;
+    tar -zxf openssl-${OPENSSL_VERSION}.tar.gz;
+    cd openssl-${OPENSSL_VERSION};
+    ./config --prefix=/usr/openssl --openssldir=/usr/openssl;
+    make;
+    make install
+  - |
+    . /etc/versions;
+    mkdir -p /build/nginx-auth-ldap;
+    cd /build/nginx-auth-ldap;
+    git clone https://github.com/kvspb/nginx-auth-ldap.git;
+    cd nginx-auth-ldap;
+    git checkout ${NGINXLDAP_VERSION};
+  - |
+    . /etc/versions;
+    mkdir -p /build/nginx;
+    cd /build/nginx;
+    wget https://nginx.org/download/nginx-${NGINX_VERSION}.tar.gz;
+    tar -xzvf nginx-${NGINX_VERSION}.tar.gz;
+    cd nginx-${NGINX_VERSION};
+    ./configure \
+      --with-openssl=/build/openssl/openssl-${OPENSSL_VERSION} \
+      --sbin-path=/usr/local/nginx/nginx \
+      --conf-path=/usr/local/nginx/nginx.conf \
+      --pid-path=/usr/local/nginx/nginx.pid \
+      --with-pcre=../../pcre/pcre-${PCRE_VERSION} \
+      --with-zlib=../../zlib/zlib-${ZLIB_VERSION} \
+      --with-http_ssl_module \
+      --with-stream \
+      --with-mail=dynamic \
+      --add-dynamic-module=../../nginx-auth-ldap/nginx-auth-ldap;
+    make;
+    make install;
+    ln -s /usr/local/nginx/nginx /usr/sbin/nginx;
+  - |
+    sed -i 's:#pid .*$:pid /run/nginx.pid;:' /usr/local/nginx/nginx.conf
+  - |
+    mkdir -p /run;
+    systemctl daemon-reload;
+    systemctl enable nginx;
+    systemctl start nginx;
+    systemctl status nginx.service;
+
