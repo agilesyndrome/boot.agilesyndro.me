@@ -2,6 +2,8 @@
 PCRE_VERSION=8.43
 BUILD_ROOT=${BUILD_ROOT:-/build}
 
+apt-get install -y gcc build-essential
+
 set -e
 mkdir -p ${BUILD_ROOT}/pcre
 cd ${BUILD_ROOT}/pcre

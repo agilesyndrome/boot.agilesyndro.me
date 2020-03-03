@@ -1,8 +1,0 @@
-BOP_NAME=${1}
-BOP_REQUESTED_VERSION=${2:-latest}
-
-if [ -z ${1} ]; then
-  echo "Usage: ${0} bop_name [bop_version (Optional, default=latest)]"
-  exit 1
-fi
-
