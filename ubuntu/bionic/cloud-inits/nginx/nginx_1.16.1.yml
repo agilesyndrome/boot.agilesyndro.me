@@ -40,16 +40,8 @@ write_files:
       WantedBy=multi-user.target
 
 runcmd:
-  - |
-    . /etc/versions;
-    mkdir -p /build/pcre;
-    cd /build/pcre;
-    wget https://ftp.pcre.org/pub/pcre/pcre-${PCRE_VERSION}.tar.gz;
-    tar -xzvf pcre-${PCRE_VERSION}.tar.gz;
-    cd pcre-${PCRE_VERSION};
-    ./configure;
-    make ;
-    make install
+  - . /etc/versions;
+    bop pcre 8.43
   - |
     . /etc/versions;
     mkdir -p /build/zlib;
